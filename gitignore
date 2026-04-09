@@ -1,0 +1,56 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+MANIFEST
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.env
+.venv
+env/
+venv/
+ENV/
+.env.local
+.env.*.local
+
+# ── Streamlit ─────────────────────────────────────────────────────────────────
+# Keep config.toml (theme) but never commit secrets
+.streamlit/secrets.toml
+
+# ── Jupyter ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── IDE / editor ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Logs & temp ───────────────────────────────────────────────────────────────
+*.log
+*.tmp
+*.temp
+
+# ── Local data files (if you later add raw datasets) ─────────────────────────
+data/raw/
+*.csv
+*.parquet
+*.feather
+*.pkl

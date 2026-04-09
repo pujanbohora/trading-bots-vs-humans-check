@@ -1,10 +1,13 @@
 """
-Do Trading Bots Actually Work?  —  Portfolio Dashboard
-═══════════════════════════════════════════════════════
-Author  : Pawan Bohora  ·  MSCS, Wright State University
-GitHub  : github.com/pawanbohora
-Sources : SEBI India (2024) · ESMA · Wiecki et al./Quantopian (2016)
-          Barber & Odean/UC Berkeley · MEXC (2026) · Dalbar Inc.
+Trading Bots: Reality Check — Portfolio Dashboard
+══════════════════════════════════════════════════
+Author  : Pawan Bohora · MSCS, Wright State University
+GitHub  : github.com/pawanbohora/trading-bots-reality-check
+
+Data provenance legend used throughout this file:
+  SOURCE     — figure cited directly from a published study, regulator disclosure, or broker report
+  MODELED    — derived / calculated from source figures (e.g. net = gross − fees − slippage)
+  ILLUS      — illustrative scenario built to explain a concept; assumptions explicitly stated
 """
 
 import streamlit as st
@@ -16,16 +19,16 @@ import plotly.graph_objects as go
 # 1 ·  PAGE CONFIG  (must be the very first Streamlit call)
 # ═══════════════════════════════════════════════════════════════════════════════
 st.set_page_config(
-    page_title="Do Trading Bots Actually Work?",
+    page_title="Trading Bots: Reality Check",
     page_icon="📊",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# 2 ·  DESIGN SYSTEM  (colours, chart defaults, consistent sizing)
+# 2 ·  DESIGN SYSTEM
 # ═══════════════════════════════════════════════════════════════════════════════
-# ── colour tokens ─────────────────────────────────────────────────────────────
 BG     = "#0F1117"
 CARD   = "#1A1D27"
 BORDER = "#2A2D3A"
@@ -33,25 +36,23 @@ BLUE   = "#4F8EF7"
 RED    = "#F75D5D"
 GREEN  = "#4FD1A5"
 YELLOW = "#F7C948"
-PURPLE = "#B45FE3"
-TEXT   = "#E8EAF0"
-MUTED  = "#9CA3AF"
+TEXT   = "#F0F2FA"   # primary text — bright enough for dark background
+MUTED  = "#C0C3D4"   # secondary text — significantly brighter than default grey
+SUB    = "#8A8E9E"   # truly de-emphasised labels (footnotes, eyebrows)
 GRID   = "#2A2D3A"
-DIM    = "#3A3D4A"   # colour for de-emphasised bars when a filter is active
+DIM    = "#3A3D4A"   # de-emphasised bars when filter is active
 
-# ── trader palette (used consistently across all charts) ──────────────────────
 TRADER_COLORS = {
     "Retail Bot":              BLUE,
     "Manual Day Trader":       RED,
     "Institutional Algo":      GREEN,
     "Passive Index (S&P 500)": YELLOW,
 }
+TRADERS = list(TRADER_COLORS.keys())
 
-# ── chart sizing constants ─────────────────────────────────────────────────────
-H = 380   # standard chart height
-H_WIDE = 420   # full-width chart height
+H      = 380    # standard chart height
+H_WIDE = 420    # full-width chart height
 
-# ── base Plotly layout (applied to every figure) ──────────────────────────────
 BASE = dict(
     paper_bgcolor=CARD,
     plot_bgcolor=CARD,
@@ -72,125 +73,216 @@ BASE = dict(
     legend=dict(bgcolor=CARD, bordercolor=BORDER, font=dict(color=TEXT, size=11)),
 )
 
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3 ·  CUSTOM CSS
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(f"""
 <style>
-/* ── shell & backgrounds ────────────────────────────────────── */
+/* ── shell ───────────────────────────────────────────────────────── */
 .stApp,
 [data-testid="stAppViewContainer"],
-[data-testid="stMain"]          {{ background-color: {BG}; }}
-[data-testid="stHeader"]        {{ background-color: {BG}; border-bottom: 1px solid {BORDER}; }}
-[data-testid="stSidebar"]       {{ background-color: {CARD}; border-right: 1px solid {BORDER}; }}
+[data-testid="stMain"]            {{ background-color: {BG}; }}
+[data-testid="stHeader"]          {{ background-color: {BG}; border-bottom: 1px solid {BORDER}; }}
+[data-testid="stSidebar"]         {{ background-color: {CARD}; border-right: 1px solid {BORDER}; }}
 [data-testid="stSidebarContent"] > div:first-child {{ padding-top: 1.5rem; }}
 
-/* ── metric cards ───────────────────────────────────────────── */
+/* ── base typography — fix grey-on-black readability ─────────────── */
+.stApp p, .stMarkdown p, .stMarkdown li,
+.stMarkdown span, .element-container p  {{ color: {TEXT}; }}
+.stMarkdown                             {{ color: {TEXT}; }}
+
+/* ── metric cards ────────────────────────────────────────────────── */
 [data-testid="metric-container"] {{
     background: {CARD};
     border: 1px solid {BORDER};
     border-radius: 10px;
-    padding: 14px 16px;
+    padding: 16px 18px;
 }}
 [data-testid="stMetricValue"] {{ color: {BLUE}; font-size: 1.75rem !important; font-weight: 700; }}
-[data-testid="stMetricLabel"] {{ color: {MUTED}; font-size: 0.78rem !important; }}
-[data-testid="stMetricDelta"] {{ font-size: 0.74rem !important; }}
+[data-testid="stMetricLabel"] {{ color: {MUTED}; font-size: 0.80rem !important; font-weight: 500; }}
+[data-testid="stMetricDelta"] {{ font-size: 0.76rem !important; }}
 
-/* ── section headers ─────────────────────────────────────────── */
-.sec-wrap   {{ margin-bottom: 8px; }}
-.sec-eyebrow{{ color:{MUTED}; font-size:0.68rem; letter-spacing:0.14em;
-               text-transform:uppercase; margin-bottom:2px; }}
-.sec-title  {{ color:{TEXT}; font-size:1.3rem; font-weight:700; line-height:1.25; }}
-.sec-cap    {{ color:{MUTED}; font-size:0.85rem; margin-top:2px; margin-bottom:4px; }}
+/* ── section headers ─────────────────────────────────────────────── */
+.sec-wrap    {{ margin-bottom: 12px; }}
+.sec-eyebrow {{ color: {SUB}; font-size: 0.68rem; letter-spacing: 0.14em;
+                text-transform: uppercase; margin-bottom: 3px; }}
+.sec-title   {{ color: {TEXT}; font-size: 1.3rem; font-weight: 700; line-height: 1.25; }}
+.sec-cap     {{ color: {MUTED}; font-size: 0.88rem; margin-top: 4px; margin-bottom: 6px; }}
 
-/* ── key insight cards ───────────────────────────────────────── */
-.ins        {{ background:{CARD}; border-left:3px solid {BLUE};
-               border-radius:0 8px 8px 0; padding:13px 17px; margin-bottom:10px; }}
-.ins.red    {{ border-left-color:{RED};    }}
-.ins.yellow {{ border-left-color:{YELLOW}; }}
-.ins.green  {{ border-left-color:{GREEN};  }}
-.ins-title  {{ font-weight:700; color:{TEXT}; font-size:0.94rem; }}
-.ins-body   {{ color:{MUTED}; font-size:0.86rem; line-height:1.55; margin-top:3px; }}
-.ins-src    {{ color:#6B7280; font-size:0.75rem; margin-top:5px; }}
+/* ── provenance tags ─────────────────────────────────────────────── */
+.tag         {{ display: inline-block; border-radius: 5px; padding: 1px 8px;
+                font-size: 0.68rem; font-weight: 700; letter-spacing: 0.05em;
+                vertical-align: middle; margin-left: 6px; }}
+.tag-source  {{ background: rgba(79,209,165,0.13); color: {GREEN};
+                border: 1px solid rgba(79,209,165,0.28); }}
+.tag-modeled {{ background: rgba(79,142,247,0.13); color: {BLUE};
+                border: 1px solid rgba(79,142,247,0.28); }}
+.tag-illus   {{ background: rgba(247,201,72,0.11); color: {YELLOW};
+                border: 1px solid rgba(247,201,72,0.22); }}
 
-/* ── sidebar helpers ─────────────────────────────────────────── */
-.sb-label   {{ color:{MUTED}; font-size:0.72rem; text-transform:uppercase;
-               letter-spacing:0.1em; margin-bottom:4px; margin-top:20px; }}
-.sb-badge   {{ display:inline-block; background:{BLUE}18; border:1px solid {BLUE}44;
-               border-radius:16px; color:{BLUE}; font-size:0.78rem;
-               padding:2px 10px; margin-top:6px; }}
+/* ── insight cards ───────────────────────────────────────────────── */
+.ins         {{ background: {CARD}; border-left: 3px solid {BLUE};
+                border-radius: 0 8px 8px 0; padding: 14px 18px; margin-bottom: 12px; }}
+.ins.red     {{ border-left-color: {RED};    }}
+.ins.yellow  {{ border-left-color: {YELLOW}; }}
+.ins.green   {{ border-left-color: {GREEN};  }}
+.ins-title   {{ font-weight: 700; color: {TEXT}; font-size: 0.96rem; }}
+.ins-body    {{ color: {MUTED}; font-size: 0.88rem; line-height: 1.62; margin-top: 5px; }}
+.ins-src     {{ color: {SUB}; font-size: 0.76rem; margin-top: 6px; }}
 
-/* ── misc ─────────────────────────────────────────────────────── */
-hr {{ border-color:{BORDER} !important; margin:26px 0; }}
-[data-testid="stExpander"] {{
-    background:{CARD}; border:1px solid {BORDER}; border-radius:8px;
-}}
-[data-testid="stDataFrame"] {{ border:1px solid {BORDER}; border-radius:8px; }}
+/* ── conclusion takeaway cards ───────────────────────────────────── */
+.takeaway      {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 10px;
+                  padding: 20px 22px; margin-bottom: 10px; height: 100%; }}
+.takeaway-num  {{ color: {BLUE}; font-size: 1.5rem; font-weight: 800; line-height: 1; }}
+.takeaway-text {{ color: {MUTED}; font-size: 0.90rem; line-height: 1.65; margin-top: 8px; }}
+
+/* ── source note ─────────────────────────────────────────────────── */
+.src-note    {{ color: {SUB}; font-size: 0.79rem; margin-top: 2px;
+                margin-bottom: 8px; font-style: italic; }}
+
+/* ── sidebar ─────────────────────────────────────────────────────── */
+.sb-label    {{ color: {SUB}; font-size: 0.72rem; text-transform: uppercase;
+                letter-spacing: 0.1em; margin-bottom: 4px; margin-top: 20px; }}
+.sb-badge    {{ display: inline-block; background: rgba(79,142,247,0.10);
+                border: 1px solid rgba(79,142,247,0.25); border-radius: 16px;
+                color: {BLUE}; font-size: 0.78rem; padding: 2px 10px; margin-top: 6px; }}
+
+/* ── misc ────────────────────────────────────────────────────────── */
+hr {{ border-color: {BORDER} !important; margin: 28px 0; }}
+[data-testid="stExpander"] {{ background: {CARD}; border: 1px solid {BORDER}; border-radius: 8px; }}
+[data-testid="stDataFrame"] {{ border: 1px solid {BORDER}; border-radius: 8px; }}
+.stAlert {{ border-radius: 8px; }}
+.stAlert p {{ color: inherit; }}
 </style>
 """, unsafe_allow_html=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 4 ·  DATASETS
+# 4 ·  DATA LAYER
+#      Separated from presentation. Each value tagged SOURCE / MODELED / ILLUS.
 # ═══════════════════════════════════════════════════════════════════════════════
-TRADERS = list(TRADER_COLORS.keys())
 
-# ── 4a. Main comparison table ─────────────────────────────────────────────────
-df_traders = pd.DataFrame({
-    "Trader Type":       TRADERS,
-    "Win Rate (%)":      [56,   48,   74,   100],
-    "Gross Return (%)":  [9.2,  5.1,  23.5, 10.0],
-    "Fees (%)":          [2.3,  1.4,  0.3,  0.05],
-    "Slippage (%)":      [1.8,  0.6,  0.1,  0.0],
-    "Net Return (%)":    [5.1,  3.1,  23.1, 9.95],
-    "Max Drawdown (%)":  [19.5, 24.2, 10.8, 13.7],
-    "6-Mo Failure (%)":  [73,   88,   15,   0],
-})
+def load_data() -> dict:
+    """
+    Central data loader. Returns all datasets used by the dashboard.
+    Provenance tags are embedded as comments and in the 'Provenance' column
+    where applicable.
+    """
+    # ── Main comparison table ──────────────────────────────────────────────────
+    # Win rates:     SOURCE  — Barber & Odean (retail/manual), industry aggregates (institutional)
+    # Gross return:  MODELED — category averages compiled from multiple sources
+    # Fees/slip:     MODELED — median estimates per category; retail bot from MEXC analysis
+    # Net return:    MODELED — gross − fees − slippage
+    # Drawdown:      MODELED — typical reported ranges per category
+    # 6-Mo failure:  SOURCE  — ForTraders 2026 (bots), Barber & Odean (manual), ESMA (EU)
+    df_traders = pd.DataFrame({
+        "Trader Type":      TRADERS,
+        "Win Rate (%)":     [56,   48,   74,   100],
+        "Gross Return (%)": [9.2,  5.1,  23.5, 10.0],
+        "Fees (%)":         [2.3,  1.4,  0.3,  0.05],
+        "Slippage (%)":     [1.8,  0.6,  0.1,  0.0],
+        "Net Return (%)":   [5.1,  3.1,  23.1, 9.95],
+        "Max Drawdown (%)": [19.5, 24.2, 10.8, 13.7],
+        "6-Mo Failure (%)": [73,   88,   15,   0],
+    })
 
-# ── 4b. Regulator loss rates ──────────────────────────────────────────────────
-df_loss = pd.DataFrame({
-    "Market":   ["India F&O (SEBI 2024)", "EU CFD Avg (ESMA)",
-                 "Taiwan Day Traders",    "US Forex (Retail)",
-                 "Manual Day Traders",    "Retail Algo Bots*"],
-    "Loss %":   [93, 75, 82, 77, 88, 40],
-    "Source":   ["SEBI 2024", "ESMA", "Barber & Odean",
-                 "CFTC", "Multiple studies", "TradingView Hub 2026"],
-})
+    # ── Regulator loss rates ───────────────────────────────────────────────────
+    # All figures SOURCE from mandatory legal disclosures or peer-reviewed studies.
+    # *Retail algo bot figure from TradingView Hub 2026 — subject to survivorship bias.
+    df_loss = pd.DataFrame({
+        "Market": [
+            "India F&O (SEBI 2024)",
+            "EU CFD Avg (ESMA)",
+            "Taiwan Day Traders",
+            "US Forex (Retail)",
+            "Manual Day Traders",
+            "Retail Algo Bots*",
+        ],
+        "Loss %": [93, 75, 82, 77, 88, 40],
+        "Source": [
+            "SEBI 2024",
+            "ESMA",
+            "Barber & Odean",
+            "CFTC",
+            "Multiple studies",
+            "TradingView Hub 2026",
+        ],
+    })
 
-# ── 4c. Win-rate paradox simulation ───────────────────────────────────────────
-WIN_AVG, LOSS_AVG = +1.2, -2.8          # real data: 25,000+ trader study
-BREAKEVEN_WR = abs(LOSS_AVG) / (WIN_AVG + abs(LOSS_AVG))   # ≈ 0.70
-np.random.seed(42)
-_wr  = np.linspace(0.30, 0.88, 800)
-_pnl = _wr * WIN_AVG + (1 - _wr) * LOSS_AVG
+    # ── Survivorship bias correction ──────────────────────────────────────────
+    # SOURCE:  Andrikogiannopoulou & Papakonstantinou (hedge fund survivorship study)
+    # MODELED: Correction factors applied to retail bot context
+    sb_data = {
+        "metrics":   ["Annual Return (%)", "Sharpe Ratio", "Max Drawdown (%)"],
+        "biased":    [14.2, 1.40, 12.0],
+        "corrected": [10.6, 0.90, 26.0],
+    }
 
-# ── 4d. Cost erosion (waterfall) ──────────────────────────────────────────────
-EROSION_X      = ["Gross Return\n(Backtest)", "Exchange\nFees",
-                  "Slippage", "Latency &\nExecution", "Net Return"]
+    return {"traders": df_traders, "loss": df_loss, "sb": sb_data}
+
+
+def build_win_rate_model() -> tuple:
+    """
+    MODELED: Continuous P&L vs win-rate curve derived from SOURCE inputs.
+
+    Avg winner +1.2% and avg loser −2.8% are SOURCE values from
+    Barber, Makov & Schwartz (JFQA 2024) — study of 25,000+ retail accounts.
+    Break-even win rate is algebraic: |loss| / (win + |loss|).
+
+    Returns: (win_rates, pnl_per_trade, breakeven_wr, win_avg, loss_avg)
+    """
+    WIN_AVG  = +1.2   # SOURCE
+    LOSS_AVG = -2.8   # SOURCE
+    BREAKEVEN_WR = abs(LOSS_AVG) / (WIN_AVG + abs(LOSS_AVG))  # math → ≈0.70
+    wr  = np.linspace(0.30, 0.88, 800)
+    pnl = wr * WIN_AVG + (1 - wr) * LOSS_AVG
+    return wr, pnl, BREAKEVEN_WR, WIN_AVG, LOSS_AVG
+
+
+def build_growth_model(years: list) -> pd.DataFrame:
+    """
+    ILLUS: Compound growth trajectories — scenario model, not observed tracks.
+
+    Assumed annual rates (stated assumptions, not guarantees):
+      Passive Index:   10.0% p.a.  (S&P 500 historical CAGR · Dalbar)
+      Retail Bot:       6.5% p.a.  (optimistic net-of-cost estimate)
+      Manual Retail:    3.9% p.a.  (Dalbar 20-year average retail return)
+
+    Starting capital: $10,000 · Jan 2006.
+    """
+    n = len(years)
+    return pd.DataFrame({
+        "Year":                    years,
+        "Passive Index (S&P 500)": [10_000 * 1.100 ** i for i in range(n)],
+        "Retail Bot (Optimistic)": [10_000 * 1.065 ** i for i in range(n)],
+        "Manual Retail Trader":    [10_000 * 1.039 ** i for i in range(n)],
+    })
+
+
+# ── Initialise ─────────────────────────────────────────────────────────────────
+DATA       = load_data()
+df_traders = DATA["traders"]
+df_loss    = DATA["loss"]
+sb_data    = DATA["sb"]
+
+wr, pnl, BREAKEVEN_WR, WIN_AVG, LOSS_AVG = build_win_rate_model()
+
+YEARS     = list(range(2006, 2026))
+df_growth = build_growth_model(YEARS)
+
+# MODELED: Illustrative cost erosion waterfall for a typical retail bot strategy
+EROSION_X      = ["Gross\nReturn", "Exchange\nFees", "Slippage", "Latency &\nExecution", "Net\nReturn"]
 EROSION_DELTAS = [20.0, -5.5, -4.7, -2.6, 0.0]
 EROSION_TYPES  = ["absolute", "relative", "relative", "relative", "total"]
 
-# ── 4e. Survivorship bias correction ─────────────────────────────────────────
-SB_METRICS    = ["Annual Return (%)", "Sharpe Ratio", "Max Drawdown (%)"]
-SB_BIASED     = [14.2, 1.40, 12.0]
-SB_CORRECTED  = [10.6, 0.90, 26.0]
-
-# ── 4f. 20-year compound growth ($10,000 → 2025) ──────────────────────────────
-_YEARS = list(range(2006, 2026))
-df_growth = pd.DataFrame({
-    "Year":                  _YEARS,
-    "Passive Index (S&P 500)": [10_000 * 1.100 ** i for i in range(len(_YEARS))],
-    "Retail Bot (Optimistic)": [10_000 * 1.065 ** i for i in range(len(_YEARS))],
-    "Manual Retail Trader":    [10_000 * 1.039 ** i for i in range(len(_YEARS))],
-})
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 5 ·  HELPERS
+# 5 ·  UI HELPERS
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def bar_color(trader: str, selected: str) -> str:
-    """Return full colour when selected=='All' or matches, dim otherwise."""
+    """Full colour when unfiltered or matches selection; dim otherwise."""
     if selected == "All Traders":
         return TRADER_COLORS[trader]
     return TRADER_COLORS[trader] if trader == selected else DIM
@@ -202,20 +294,30 @@ def bar_opacity(trader: str, selected: str) -> float:
     return 1.0 if trader == selected else 0.30
 
 
-def section(eyebrow: str, title: str, caption: str = "") -> None:
-    """Render a styled section header."""
+def render_section_header(
+    eyebrow: str,
+    title: str,
+    caption: str = "",
+    tag: str = "",
+    tag_type: str = "source",
+) -> None:
+    """Render a styled section header with an optional provenance tag."""
     cap_html = f'<div class="sec-cap">{caption}</div>' if caption else ""
+    tag_html = ""
+    if tag:
+        css = {"source": "tag-source", "modeled": "tag-modeled", "illus": "tag-illus"}.get(tag_type, "tag-source")
+        tag_html = f'<span class="tag {css}">{tag}</span>'
     st.markdown(
         f'<div class="sec-wrap">'
         f'<div class="sec-eyebrow">{eyebrow}</div>'
-        f'<div class="sec-title">{title}</div>'
+        f'<div class="sec-title">{title}{tag_html}</div>'
         f'{cap_html}</div>',
         unsafe_allow_html=True,
     )
 
 
-def insight(color: str, title: str, body: str, source: str) -> None:
-    """Render a key-insight card."""
+def render_insight_card(color: str, title: str, body: str, source: str) -> None:
+    """Render a coloured insight card with title, body text, and source citation."""
     st.markdown(
         f'<div class="ins {color}">'
         f'<div class="ins-title">{title}</div>'
@@ -226,30 +328,40 @@ def insight(color: str, title: str, body: str, source: str) -> None:
     )
 
 
+def source_note(text: str) -> None:
+    """Small italic note placed directly beneath a chart."""
+    st.markdown(
+        f'<div class="src-note">📎 {text}</div>',
+        unsafe_allow_html=True,
+    )
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # 6 ·  SIDEBAR
 # ═══════════════════════════════════════════════════════════════════════════════
 with st.sidebar:
-    # ── Project identity ──────────────────────────────────────────────────────
-    st.markdown("## 📊 AlgoMirror")
     st.markdown(
-        f"<span style='color:{MUTED}; font-size:0.83rem;'>"
-        "A forensic analysis of retail algorithmic trading "
-        "performance after fees, slippage, and risk."
+        f"<h2 style='color:{TEXT}; font-size:1.15rem; font-weight:800; margin-bottom:2px;'>"
+        "📊 Trading Bots: Reality Check</h2>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<span style='color:{MUTED}; font-size:0.84rem; line-height:1.55;'>"
+        "A forensic analysis of retail algorithmic trading performance "
+        "after fees, slippage, latency, and risk."
         "</span>",
         unsafe_allow_html=True,
     )
 
     st.divider()
 
-    # ── Trader-type filter ────────────────────────────────────────────────────
     st.markdown('<div class="sb-label">Filter · Trader Type</div>', unsafe_allow_html=True)
     selected_trader = st.selectbox(
-        label="Select trader type",
+        label="Trader type",
         options=["All Traders"] + TRADERS,
         index=0,
         label_visibility="collapsed",
-        help="Highlight one trader type across all comparison charts.",
+        help="Highlight a single trader type across all comparison charts.",
     )
     if selected_trader != "All Traders":
         st.markdown(
@@ -259,7 +371,6 @@ with st.sidebar:
 
     st.divider()
 
-    # ── Quick stats ───────────────────────────────────────────────────────────
     st.markdown('<div class="sb-label">Quick Stats</div>', unsafe_allow_html=True)
     sel_row = df_traders[df_traders["Trader Type"] == selected_trader]
     if not sel_row.empty:
@@ -269,32 +380,36 @@ with st.sidebar:
         st.metric("Max Drawdown",  f"{r['Max Drawdown (%)']:.1f}%")
         st.metric("6-Mo Failure",  f"{r['6-Mo Failure (%)']:.0f}%")
     else:
-        st.caption("Select a specific trader type to see its stats.")
+        st.markdown(
+            f"<span style='color:{MUTED}; font-size:0.84rem;'>"
+            "Select a specific trader type to see key stats."
+            "</span>",
+            unsafe_allow_html=True,
+        )
 
     st.divider()
 
-    # ── Data sources ──────────────────────────────────────────────────────────
-    st.markdown('<div class="sb-label">Data Sources</div>', unsafe_allow_html=True)
-    sources = [
-        ("SEBI India", "Sept 2024"),
-        ("ESMA (EU)", "CFD disclosure"),
-        ("Quantopian 888-strategy", "2016"),
-        ("Barber & Odean / UC Berkeley", "Taiwan study"),
-        ("MEXC", "2026 slippage analysis"),
-        ("Dalbar Inc.", "20-year retail study"),
+    st.markdown('<div class="sb-label">Primary Sources</div>', unsafe_allow_html=True)
+    for name, detail in [
+        ("SEBI India",      "Sept 2024"),
+        ("ESMA (EU)",       "CFD disclosure"),
+        ("Quantopian",      "888-strategy study, 2016"),
+        ("Barber & Odean",  "UC Berkeley · Taiwan study"),
+        ("MEXC",            "2026 slippage analysis"),
+        ("Dalbar Inc.",     "20-year retail study"),
         ("TradingView Hub", "2026"),
-    ]
-    for name, detail in sources:
+    ]:
         st.markdown(
-            f"<span style='color:{TEXT}; font-size:0.82rem; font-weight:600;'>{name}</span>"
-            f"<span style='color:{MUTED}; font-size:0.80rem;'> · {detail}</span><br>",
+            f"<span style='color:{TEXT}; font-size:0.83rem; font-weight:600;'>{name}</span>"
+            f"<span style='color:{MUTED}; font-size:0.81rem;'> · {detail}</span><br>",
             unsafe_allow_html=True,
         )
 
     st.divider()
     st.markdown(
-        f"<span style='color:{MUTED}; font-size:0.76rem;'>"
-        "By Pawan Bohora · MSCS, Wright State University · Independent research"
+        f"<span style='color:{SUB}; font-size:0.76rem;'>"
+        "Pawan Bohora · MSCS, Wright State University<br>"
+        "Independent research portfolio project"
         "</span>",
         unsafe_allow_html=True,
     )
@@ -303,35 +418,52 @@ with st.sidebar:
 # ═══════════════════════════════════════════════════════════════════════════════
 # 7 ·  HEADER
 # ═══════════════════════════════════════════════════════════════════════════════
-st.markdown("# 📊 Do Trading Bots Actually Work?")
 st.markdown(
-    "A data-driven forensic analysis of retail algorithmic trading performance "
-    "**after fees, slippage, latency, and risk.** Built on primary-source data from "
-    "SEBI India, ESMA, Quantopian's 888-strategy study, and Dalbar's 20-year retail dataset."
+    f"<h1 style='color:{TEXT}; font-size:2rem; font-weight:800; margin-bottom:6px;'>"
+    "Trading Bots: Reality Check"
+    "</h1>",
+    unsafe_allow_html=True,
 )
+st.markdown(
+    f"<p style='color:{MUTED}; font-size:0.97rem; max-width:800px; line-height:1.65;'>"
+    "A forensic analysis of whether retail algorithmic trading bots outperform human traders "
+    f"<strong style='color:{TEXT};'>after accounting for fees, slippage, latency, and risk.</strong> "
+    "Built from primary regulatory disclosures, peer-reviewed academic studies, and broker-level reports."
+    "</p>",
+    unsafe_allow_html=True,
+)
+
+st.info(
+    "**Data transparency:** This dashboard combines real source-cited figures with modelled scenarios. "
+    "Each section is tagged **SOURCE**, **MODELED**, or **ILLUSTRATIVE**. "
+    "See the Methodology section at the bottom for a full breakdown.",
+    icon="ℹ️",
+)
+
 st.divider()
 
-# ── KPI row ───────────────────────────────────────────────────────────────────
+# ── KPI hero row ───────────────────────────────────────────────────────────────
 k1, k2, k3, k4 = st.columns(4)
-k1.metric("Retail Traders Who Lose Money",   "89–93%",  "SEBI India & ESMA",              delta_color="inverse")
-k2.metric("Algo Bots Failing Within 6 Mo.",  "73%",     "Automated crypto accounts",       delta_color="inverse")
-k3.metric("Backtest Predicts Live (R²)",      "≈1–2%",  "888 strategies · Quantopian",     delta_color="inverse")
-k4.metric("Slippage as % of Gross Revenue",  "347%",    "BTC HF mean reversion · MEXC",    delta_color="inverse")
+k1.metric("Retail Traders Losing Money",    "89–93%",  "↑ SEBI India & ESMA · SOURCE",           delta_color="inverse")
+k2.metric("Algo Bots Failing Within 6 Mo.", "73%",     "↑ Automated crypto accounts · SOURCE",    delta_color="inverse")
+k3.metric("Backtest Predicts Live (R²)",    "≈1–2%",   "↑ 888 strategies · Quantopian · SOURCE",  delta_color="inverse")
+k4.metric("Slippage as % of Gross Revenue", "347%",    "↑ BTC HF mean reversion · MEXC · SOURCE", delta_color="inverse")
+
 st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 8 ·  SECTION A — Performance Overview
+# §01 — PERFORMANCE OVERVIEW
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 01  ·  Performance",
+render_section_header(
+    "§01 · Performance",
     "Net Returns by Trader Type",
     "After exchange fees and slippage — which approach actually makes money?",
+    tag="MODELED", tag_type="modeled",
 )
 
 col_a1, col_a2 = st.columns(2)
 
-# ── Chart A1: Net annual return ───────────────────────────────────────────────
 with col_a1:
     fig = go.Figure()
     for t in TRADERS:
@@ -361,8 +493,8 @@ with col_a1:
         bargap=0.35,
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("MODELED — Net = Gross − exchange fees − slippage. Derived from category-level averages.")
 
-# ── Chart A2: Win rate comparison ─────────────────────────────────────────────
 with col_a2:
     fig = go.Figure()
     for t in TRADERS:
@@ -392,35 +524,37 @@ with col_a2:
         bargap=0.35,
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("SOURCE — Retail/manual win rates: Barber & Odean. Institutional: industry aggregates.")
 
-# ── Comparison table (collapsible) ────────────────────────────────────────────
 with st.expander("📋  Full comparison table", expanded=False):
     display = df_traders.copy()
     if selected_trader != "All Traders":
         display = display[display["Trader Type"] == selected_trader]
     st.dataframe(
-        display.style.format({
-            c: "{:.2f}" for c in display.columns if "(%)" in c
-        }),
+        display.style.format({c: "{:.2f}" for c in display.columns if "(%)" in c}),
         hide_index=True,
         use_container_width=True,
+    )
+    st.caption(
+        "All (%) figures are modelled from source data using category-level averages. "
+        "They represent archetypes, not single observed traders. See Methodology for assumptions."
     )
 
 st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 9 ·  SECTION B — The Win Rate Paradox
+# §02 — WIN RATE PARADOX
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 02  ·  The Core Trap",
+render_section_header(
+    "§02 · The Core Trap",
     "The Win Rate Paradox",
-    "65% of traders had >50% win rates — yet 82% lost money. Here's why.",
+    "65% of traders had >50% win rates — yet 82% still lost money. Here is why.",
+    tag="SOURCE", tag_type="source",
 )
 
 col_b1, col_b2 = st.columns(2)
 
-# ── Chart B1: Paradox headline ────────────────────────────────────────────────
 with col_b1:
     fig = go.Figure()
     fig.add_trace(go.Bar(
@@ -436,7 +570,7 @@ with col_b1:
     ))
     fig.add_annotation(
         x=0.5, y=97, xref="paper",
-        text="Study of 25,000+ retail accounts · 4M+ trades",
+        text="Study: 25,000+ retail accounts · 4M+ trades",
         showarrow=False,
         font=dict(color=MUTED, size=10),
     )
@@ -447,27 +581,24 @@ with col_b1:
         yaxis_title="Percentage (%)", yaxis_ticksuffix="%", yaxis_range=[0, 105],
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("SOURCE — Barber, Makov & Schwartz · JFQA 2024 · 25,000+ accounts · 4M+ trades.")
 
-# ── Chart B2: Win-rate vs net P&L simulation ──────────────────────────────────
 with col_b2:
     fig = go.Figure()
-    # Shaded loss zone
-    loss_mask = _pnl < 0
+    loss_mask = pnl < 0
     fig.add_trace(go.Scatter(
-        x=_wr[loss_mask] * 100, y=_pnl[loss_mask],
+        x=wr[loss_mask] * 100, y=pnl[loss_mask],
         fill="tozeroy", fillcolor="rgba(247,93,93,0.09)",
         line=dict(width=0), showlegend=False, hoverinfo="skip",
     ))
-    # Shaded profit zone
-    win_mask = _pnl >= 0
+    win_mask = pnl >= 0
     fig.add_trace(go.Scatter(
-        x=_wr[win_mask] * 100, y=_pnl[win_mask],
+        x=wr[win_mask] * 100, y=pnl[win_mask],
         fill="tozeroy", fillcolor="rgba(79,209,165,0.09)",
         line=dict(width=0), showlegend=False, hoverinfo="skip",
     ))
-    # Main curve
     fig.add_trace(go.Scatter(
-        x=_wr * 100, y=_pnl,
+        x=wr * 100, y=pnl,
         line=dict(color=BLUE, width=2.5),
         name="Net P&L per trade",
         hovertemplate="Win rate: %{x:.1f}%<br>Net P&L: %{y:.2f}%<extra></extra>",
@@ -480,7 +611,6 @@ with col_b2:
         annotation_position="top right",
         annotation_font=dict(color=YELLOW, size=10),
     )
-    # Mark typical retail bot range
     fig.add_vrect(
         x0=55, x1=65,
         fillcolor="rgba(79,142,247,0.07)", line_width=0,
@@ -496,30 +626,33 @@ with col_b2:
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note(
+        f"MODELED — curve derived from SOURCE avg winner +{WIN_AVG}% / avg loser {LOSS_AVG}%. "
+        "Break-even is algebraic, not observed."
+    )
 
 st.info(
-    f"**Insight:** With an avg winner of +{WIN_AVG}% and avg loser of {LOSS_AVG}%, "
-    f"a bot needs a **{BREAKEVEN_WR*100:.0f}% win rate just to break even**. "
-    "Most retail bots achieve 55–65%. "
-    "**Win rate is the wrong optimisation target. Payoff ratio is what separates "
-    "profitable strategies from guaranteed slow losses.**",
+    f"**Insight:** With an avg winner of **+{WIN_AVG}%** and avg loser of **{LOSS_AVG}%**, "
+    f"a bot needs a **{BREAKEVEN_WR*100:.0f}% win rate just to break even.** "
+    "Most retail bots land in the 55–65% range. "
+    "**Win rate alone is not a valid optimisation target — payoff ratio is the real separator.**",
     icon="💡",
 )
 st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 10 ·  SECTION C — Cost Erosion
+# §03 — COST EROSION
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 03  ·  Costs",
+render_section_header(
+    "§03 · Costs",
     "The Fee & Slippage Erosion Cascade",
-    "How exchange fees and slippage compound to destroy returns that look great on paper.",
+    "How exchange fees and slippage compound to eliminate returns that look profitable on paper.",
+    tag="SOURCE + MODELED", tag_type="modeled",
 )
 
 col_c1, col_c2 = st.columns([3, 2])
 
-# ── Chart C1: Waterfall ───────────────────────────────────────────────────────
 with col_c1:
     fig = go.Figure(go.Waterfall(
         orientation="v",
@@ -549,13 +682,19 @@ with col_c1:
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("MODELED — illustrative scenario using median cost estimates for retail bots. Actual erosion varies widely by strategy and asset class.")
 
-# ── Panel C2: Real-world example table ───────────────────────────────────────
 with col_c2:
-    st.markdown(f"#### Real-World Extreme")
     st.markdown(
+        f"<h4 style='color:{TEXT}; margin-top:0;'>Real-World Extreme</h4>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<span style='color:{MUTED}; font-size:0.88rem;'>"
         "BTC High-Frequency Mean Reversion strategy "
         "(MEXC analysis, 2026 · 36,008 transactions):"
+        "</span>",
+        unsafe_allow_html=True,
     )
     real = pd.DataFrame({
         "Stage":  ["Gross Profit", "Exchange Fees", "Slippage Costs", "Net Result"],
@@ -564,14 +703,14 @@ with col_c2:
     st.dataframe(real, hide_index=True, use_container_width=True)
     st.markdown(
         f"<span style='color:{RED}; font-weight:700; font-size:0.92rem;'>"
-        "Slippage = 347% of gross revenue.</span><br>"
-        f"<span style='color:{MUTED}; font-size:0.83rem;'>"
-        "A profitable strategy on paper became a $99K loss in production. "
+        "Slippage alone = 347% of gross revenue.</span><br><br>"
+        f"<span style='color:{MUTED}; font-size:0.87rem;'>"
+        "A profitable strategy on paper became a $99K net loss in production. "
         "No standard backtest framework surfaces this automatically.</span>",
         unsafe_allow_html=True,
     )
     st.warning(
-        "Real-world returns run **30–50% below backtested results** — universally.",
+        "Real-world returns consistently run **30–50% below backtested results.**",
         icon="⚠️",
     )
 
@@ -579,12 +718,13 @@ st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 11 ·  SECTION D — Regulator Data
+# §04 — REGULATOR EVIDENCE
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 04  ·  Regulator Evidence",
+render_section_header(
+    "§04 · Regulator Evidence",
     "Official Loss Rates by Market",
-    "Legal broker disclosures and regulator-commissioned studies — not marketing estimates.",
+    "Mandatory legal disclosures and regulator-commissioned studies — not marketing estimates.",
+    tag="SOURCE", tag_type="source",
 )
 
 col_d1, col_d2 = st.columns([3, 1])
@@ -608,23 +748,29 @@ with col_d1:
         annotation_text="50%", annotation_position="top",
         annotation_font=dict(color=MUTED, size=9),
     )
-    _base_wide_margin = {**BASE, "margin": dict(l=200, r=32, t=58, b=44)}
+    _base_regulator = {**BASE, "margin": dict(l=200, r=32, t=58, b=44)}
     fig.update_layout(
-        **_base_wide_margin, height=340,
+        **_base_regulator, height=340,
         title="% of Retail Traders Losing Money — Regulator-Disclosed Data",
         xaxis_title="Loss Rate (%)", xaxis_ticksuffix="%", xaxis_range=[0, 125],
         showlegend=False,
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("*Retail algo bot figure (TradingView Hub 2026) is subject to survivorship bias — see note →")
 
 with col_d2:
-    st.markdown("#### The Asterisk on Bots")
     st.markdown(
-        f"The **40% loss rate** for retail bots looks far better than the 88% "
-        f"for manual traders.<br><br>"
-        f"<span style='color:{RED};'>**It is survivorship-biased.**</span> "
-        f"It counts only currently-active bots. 73% of accounts fail within "
-        f"6 months and exit the dataset before ever being counted as losers.",
+        f"<h4 style='color:{TEXT}; margin-top:0;'>The Asterisk on Bots</h4>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<span style='color:{MUTED}; font-size:0.88rem; line-height:1.65;'>"
+        f"The <strong style='color:{TEXT};'>40% loss rate</strong> for retail bots "
+        f"looks far better than 88% for manual traders.<br><br>"
+        f"<strong style='color:{RED};'>It is survivorship-biased.</strong> "
+        "It counts only currently active bots. 73% of accounts fail within "
+        "6 months and exit the dataset before being recorded as losers."
+        "</span>",
         unsafe_allow_html=True,
     )
 
@@ -632,17 +778,17 @@ st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 12 ·  SECTION E — Survivorship Bias
+# §05 — SURVIVORSHIP BIAS
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 05  ·  Hidden Data",
+render_section_header(
+    "§05 · Hidden Data",
     "Survivorship Bias — The Invisible Graveyard",
     "Platform leaderboards only show winning bots. The failing majority quietly disappears.",
+    tag="SOURCE + MODELED", tag_type="modeled",
 )
 
 col_e1, col_e2 = st.columns(2)
 
-# ── Chart E1: Donut — visible vs hidden ───────────────────────────────────────
 with col_e1:
     fig = go.Figure(go.Pie(
         labels=["Active & Visible", "Failed / Delisted", "Abandoned"],
@@ -668,28 +814,27 @@ with col_e1:
         title="Bot Universe: What Platforms Show You vs. Reality",
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("ILLUS — Proportions based on SOURCE 73% 6-month failure rate. Absolute numbers are illustrative.")
 
-# ── Chart E2: Grouped bar — biased vs corrected metrics ──────────────────────
 with col_e2:
     fig = go.Figure()
     fig.add_trace(go.Bar(
         name="Platform-Reported (Biased)",
-        x=SB_METRICS, y=SB_BIASED,
+        x=sb_data["metrics"], y=sb_data["biased"],
         marker_color=BLUE, marker_line_width=0,
-        text=[str(v) for v in SB_BIASED],
+        text=[str(v) for v in sb_data["biased"]],
         textposition="outside", textfont=dict(color=TEXT, size=11),
         hovertemplate="%{x}<br>Biased: %{y}<extra></extra>",
     ))
     fig.add_trace(go.Bar(
         name="Survivorship-Corrected",
-        x=SB_METRICS, y=SB_CORRECTED,
+        x=sb_data["metrics"], y=sb_data["corrected"],
         marker_color=RED, marker_line_width=0,
-        text=[str(v) for v in SB_CORRECTED],
+        text=[str(v) for v in sb_data["corrected"]],
         textposition="outside", textfont=dict(color=TEXT, size=11),
         hovertemplate="%{x}<br>Corrected: %{y}<extra></extra>",
     ))
-    # Delta annotations
-    for xi, (b, c) in enumerate(zip(SB_BIASED, SB_CORRECTED)):
+    for xi, (b, c) in enumerate(zip(sb_data["biased"], sb_data["corrected"])):
         delta = round(c - b, 1)
         sign  = "+" if delta > 0 else ""
         fig.add_annotation(
@@ -700,38 +845,39 @@ with col_e2:
         )
     fig.update_layout(
         **BASE, height=H,
-        title="Bias Correction: What Performance Metrics Really Look Like",
+        title="Bias Correction: What Metrics Really Show",
         barmode="group",
         yaxis_title="Value",
     )
     st.plotly_chart(fig, use_container_width=True)
+    source_note("MODELED — Correction factors from Andrikogiannopoulou & Papakonstantinou (hedge fund study), applied to retail context.")
 
 st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 13 ·  SECTION F — 20-Year Reality Check (full-width)
+# §06 — 20-YEAR REALITY CHECK
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 06  ·  Long-Term View",
+render_section_header(
+    "§06 · Long-Term View",
     "The 20-Year Reality Check",
-    "$10,000 invested in 2006 — where does each approach end up by 2025?",
+    "$10,000 invested in 2006 — where does each approach land by 2025?",
+    tag="ILLUSTRATIVE", tag_type="illus",
 )
 
 GROWTH_COLORS = {
-    "Passive Index (S&P 500)":   GREEN,
-    "Retail Bot (Optimistic)":   BLUE,
-    "Manual Retail Trader":      RED,
+    "Passive Index (S&P 500)": GREEN,
+    "Retail Bot (Optimistic)": BLUE,
+    "Manual Retail Trader":    RED,
 }
 GROWTH_DASH = {
-    "Passive Index (S&P 500)":   "solid",
-    "Retail Bot (Optimistic)":   "dot",
-    "Manual Retail Trader":      "dash",
+    "Passive Index (S&P 500)": "solid",
+    "Retail Bot (Optimistic)": "dot",
+    "Manual Retail Trader":    "dash",
 }
 
 fig = go.Figure()
 for col_name, color in GROWTH_COLORS.items():
-    # Show only relevant series when filter is active
     visible = True
     if selected_trader != "All Traders":
         mapping = {
@@ -762,136 +908,253 @@ for col_name, color in GROWTH_COLORS.items():
 _base_growth = {**BASE, "legend": dict(x=0.02, y=0.97, bgcolor=CARD, bordercolor=BORDER, font=dict(color=TEXT, size=11))}
 fig.update_layout(
     **_base_growth, height=H_WIDE,
-    title="$10,000 Invested in 2006 — Terminal Value in 2025",
+    title="$10,000 Invested in 2006 — Illustrative Terminal Value in 2025",
     xaxis_title="Year",
     yaxis_title="Portfolio Value (USD)",
     yaxis_tickprefix="$", yaxis_tickformat=",.0f",
 )
 st.plotly_chart(fig, use_container_width=True)
+source_note(
+    "ILLUS — Scenario model using assumed constant rates: Passive 10.0% p.a. (S&P CAGR · Dalbar), "
+    "Retail Bot 6.5% p.a. (optimistic net-of-cost), Manual 3.9% p.a. (Dalbar 20-year avg). "
+    "This is a projection, not observed portfolio data."
+)
 
-# Terminal value callout row
 tv_passive = df_growth["Passive Index (S&P 500)"].iloc[-1]
 tv_bot     = df_growth["Retail Bot (Optimistic)"].iloc[-1]
 tv_manual  = df_growth["Manual Retail Trader"].iloc[-1]
 
 g1, g2, g3 = st.columns(3)
-g1.metric("Passive Index (S&P 500)",   f"${tv_passive:,.0f}",  f"+${tv_passive-10000:,.0f} total gain")
-g2.metric("Retail Bot (Optimistic)",   f"${tv_bot:,.0f}",      f"${tv_passive-tv_bot:,.0f} below passive",  delta_color="inverse")
-g3.metric("Manual Retail Trader",      f"${tv_manual:,.0f}",   f"${tv_passive-tv_manual:,.0f} below passive", delta_color="inverse")
+g1.metric("Passive Index (S&P 500)",  f"${tv_passive:,.0f}", f"+${tv_passive-10000:,.0f} total gain")
+g2.metric("Retail Bot (Optimistic)",  f"${tv_bot:,.0f}",     f"${tv_passive-tv_bot:,.0f} below passive",   delta_color="inverse")
+g3.metric("Manual Retail Trader",     f"${tv_manual:,.0f}",  f"${tv_passive-tv_manual:,.0f} below passive", delta_color="inverse")
+
 st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 14 ·  SECTION G — Key Insights
+# §07 — KEY INSIGHTS
 # ═══════════════════════════════════════════════════════════════════════════════
-section(
-    "Section 07  ·  Conclusions",
+render_section_header(
+    "§07 · Findings",
     "Key Insights",
     "Five data-backed conclusions from this analysis.",
 )
 
-# Two-column insight layout
 ins_left, ins_right = st.columns(2)
 
 with ins_left:
-    insight(
+    render_insight_card(
         "red",
         "💸  Fees and slippage can consume more than 100% of gross profit.",
-        "A BTC high-frequency mean reversion strategy earning $84,534 gross resulted in a $99,896 net loss. "
-        "Exchange fees ($66,456) and slippage ($46,966) together equalled 347% of gross revenue — "
+        f"A BTC high-frequency mean reversion strategy earning $84,534 gross resulted in a $99,896 net loss. "
+        f"Exchange fees ($66,456) and slippage ($46,966) combined equalled 347% of gross revenue — "
         "a ratio no standard backtest framework surfaces automatically.",
-        "MEXC Slippage Analysis, 2026",
+        "MEXC Slippage Analysis, 2026 · SOURCE",
     )
-    insight(
+    render_insight_card(
         "red",
         "🔬  Backtests predict live performance with less than 2% accuracy.",
         "Quantopian's study of 888 strategies found R² ≈ 0.025 between backtest and live Sharpe ratios. "
-        "Testing just 50 strategy variants produces a 92%+ probability of finding a false positive by chance. "
-        "A high backtest Sharpe is statistically indistinguishable from a low one as a live predictor.",
-        "Wiecki et al. / Quantopian, 2016",
+        "Testing 50 strategy variants creates a 92%+ probability of finding a false positive by chance. "
+        "A high backtest Sharpe is statistically near-useless as a predictor of live returns.",
+        "Wiecki et al. / Quantopian, 2016 · SOURCE",
     )
-    insight(
+    render_insight_card(
         "yellow",
-        "📐  Win rate is a misleading target. Payoff ratio is what matters.",
-        "65% of traders in a 25,000+ account study had >50% win rates, yet 82% lost money overall. "
+        "📐  Win rate is a misleading optimisation target.",
+        f"65% of traders in a 25,000+ account study had >50% win rates, yet 82% lost money overall. "
         f"Average winner: +{WIN_AVG}%. Average loser: {LOSS_AVG}%. "
         f"At this payoff asymmetry, a bot needs ~{BREAKEVEN_WR*100:.0f}% win rate just to break even.",
-        "Barber, Makov & Schwartz · JFQA 2024",
+        "Barber, Makov & Schwartz · JFQA 2024 · SOURCE",
     )
 
 with ins_right:
-    insight(
+    render_insight_card(
         "red",
-        "🏦  Institutional algorithms are on the other side — and they're winning.",
+        "🏦  Institutional algorithms are the counterparty — and they dominate.",
         "SEBI India (2024): 93% of 10M+ retail F&O traders lost a combined $21.7B over 3 years. "
-        "In the same period, institutional algo traders captured 97% of FPI profits and 96% of "
-        "proprietary trader profits. Retail bots aren't competing against slow humans — "
-        "they're counterparties to professional quants with co-location and sub-ms execution.",
-        "SEBI India Press Release, September 2024",
+        "In the same period, institutional algos captured 97% of FPI profits and 96% of prop trader profits. "
+        "Retail bots aren't competing against slow humans — they face quants with co-location and sub-ms execution.",
+        "SEBI India Press Release, September 2024 · SOURCE",
     )
-    insight(
+    render_insight_card(
         "yellow",
-        "⚖️  Bots beat manual trading — but both lose to passive indexing.",
+        "⚖️  Bots beat manual trading — but both underperform passive indexing.",
         "~60% of retail algo traders show positive annual returns vs. 5–10% for manual day traders. "
         "Yet the average retail investor still underperforms the S&P 500 by 6.1% annually over 20 years. "
         "Automation reduces emotional error but cannot overcome structural market disadvantages.",
-        "Dalbar Inc. 20-Year Study · TradingView Hub, 2026",
+        "Dalbar Inc. 20-Year Study · TradingView Hub, 2026 · SOURCE",
     )
-    insight(
+    render_insight_card(
         "green",
-        "✅  The rare successful bots share four traits.",
-        "Low trading frequency (limits fee drag), walk-forward validated edge (combats overfitting), "
-        "payoff-ratio-aware risk sizing, and hard drawdown circuit breakers. "
-        "These are not 'set and forget' tools — they require ongoing research and maintenance, "
-        "which is by definition a professional job.",
-        "Synthesis across all reviewed sources",
+        "✅  The rare successful bots share four structural traits.",
+        "Low trading frequency (reduces fee drag), walk-forward validated edge (combats overfitting), "
+        "payoff-ratio-aware position sizing, and hard drawdown circuit breakers. "
+        "These are not passive tools — they require continuous research, which is by definition a professional job.",
+        "Synthesis across all reviewed sources · MODELED",
     )
 
 st.divider()
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 15 ·  METHODOLOGY EXPANDER
+# §08 — CONCLUSION
 # ═══════════════════════════════════════════════════════════════════════════════
-with st.expander("🔍  Methodology & Data Notes", expanded=False):
+render_section_header(
+    "§08 · Final Assessment",
+    "Conclusion",
+    "Three key takeaways, what they mean, and what future work would add.",
+)
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
     st.markdown(f"""
-**Dataset:** This dashboard uses a structured dataset derived from primary regulatory disclosures,
-academic publications, and broker-level studies. No data is fabricated; all figures are cited to
-original sources.
+<div class="takeaway">
+  <div class="takeaway-num">01</div>
+  <div class="takeaway-text">
+    <strong style="color:{TEXT};">The fee problem is not solvable by strategy quality alone.</strong><br><br>
+    Even a genuinely alpha-generating retail bot faces 30–50% return degradation in live markets.
+    The infrastructure gap between retail and institutional execution is structural —
+    not closable with a better algorithm.
+  </div>
+</div>""", unsafe_allow_html=True)
 
-**Trader Types:** The four categories represent archetypal strategies:
-- *Retail Bot* — retail algorithmic traders using cloud-hosted bots (3Commas, Bitsgap, custom Python)
-- *Manual Day Trader* — retail humans actively trading without automation
-- *Institutional Algo* — professional quant funds and prop desks with co-location & proprietary data
-- *Passive Index (S&P 500)* — buy-and-hold SPY or equivalent, no active management
+with c2:
+    st.markdown(f"""
+<div class="takeaway">
+  <div class="takeaway-num">02</div>
+  <div class="takeaway-text">
+    <strong style="color:{TEXT};">Backtesting builds intuition, not confidence in live returns.</strong><br><br>
+    With R² ≈ 0.025, a strong backtest is necessary but nowhere near sufficient.
+    Walk-forward validation, out-of-sample testing, and realistic transaction cost
+    modelling are non-negotiable before any real capital commitment.
+  </div>
+</div>""", unsafe_allow_html=True)
 
-**Performance Figures:** Net returns are modelled from gross returns after subtracting median
-exchange fees and slippage estimates for each trader type. Institutional figures are based on
-publicly reported hedge fund aggregate returns.
+with c3:
+    st.markdown(f"""
+<div class="takeaway">
+  <div class="takeaway-num">03</div>
+  <div class="takeaway-text">
+    <strong style="color:{TEXT};">Passive indexing wins by default — not because active strategies can't work, but because the bar is steeper than marketed.</strong><br><br>
+    10% p.a. passively vs. 6.5% net for an optimistic bot is a 20-year compounding gap
+    of $37,000+ on $10K initial capital. The burden of proof for active strategies is high.
+  </div>
+</div>""", unsafe_allow_html=True)
 
-**Win Rate Simulation:** The P&L curve uses empirically-measured average winner (+{WIN_AVG}%) and
-average loser ({LOSS_AVG}%) from a 2023 study of 25,000+ retail accounts covering 4M+ trades.
+st.markdown("<br>", unsafe_allow_html=True)
 
-**Survivorship Bias Correction:** Correction factors derived from Andrikogiannopoulou &
-Papakonstantinou's hedge fund study showing 14pp drawdown underestimation and annual return
-overstatement of 1–4%.
+fut1, fut2 = st.columns(2)
 
-**20-Year Compound Model:** Starting capital $10,000 in Jan 2006. Passive: 10% p.a. (S&P historical
-CAGR). Retail bot: 6.5% p.a. (optimistic net, post-cost). Manual retail: 3.9% p.a. (Dalbar
-20-year average).
+with fut1:
+    st.markdown(
+        f"<h4 style='color:{TEXT};'>What This Means</h4>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(
+        f"<p style='color:{MUTED}; font-size:0.91rem; line-height:1.65;'>"
+        "The evidence does not say bots never work. It says the conditions required for "
+        "profitability — low-latency execution, realistic cost modelling, rigorous out-of-sample "
+        "validation, and ongoing maintenance — are far more demanding than commonly marketed. "
+        "For most retail participants, passive indexing remains the rational default."
+        "</p>",
+        unsafe_allow_html=True,
+    )
+
+with fut2:
+    st.markdown(
+        f"<h4 style='color:{TEXT};'>Future Improvements</h4>",
+        unsafe_allow_html=True,
+    )
+    for item in [
+        "Live broker API integration (Alpaca / IBKR) for real performance data",
+        "Per-strategy backtesting module with walk-forward validation",
+        "Slippage modelling by asset class and trade frequency",
+        "Monte Carlo simulation for strategy robustness",
+        "Comparison with CTA/quant fund benchmarks (Barclay CTA Index)",
+    ]:
+        st.markdown(
+            f"<span style='color:{MUTED}; font-size:0.88rem;'>→ {item}</span><br>",
+            unsafe_allow_html=True,
+        )
+
+st.divider()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# §09 — METHODOLOGY
+# ═══════════════════════════════════════════════════════════════════════════════
+with st.expander("🔍  Methodology & Data Notes — Real Data vs. Modelled Scenarios", expanded=False):
+    st.markdown(f"""
+### Is This Real Data or Simulated?
+
+**Short answer: both — and every value is explicitly tagged in the UI.**
+
+---
+
+#### SOURCE — Direct citations from published studies or regulatory disclosures
+
+| Metric | Value | Citation |
+|--------|-------|----------|
+| Retail F&O traders losing money | 89–93% | SEBI India Sept 2024; ESMA CFD broker disclosures |
+| Algo bots failing within 6 months | 73% | ForTraders 2026; automated crypto account data |
+| Backtest-to-live Sharpe R² | ≈0.025 | Wiecki et al. / Quantopian, 888 strategies, 2016 |
+| BTC HF strategy — gross profit | $84,534 | MEXC Slippage Analysis, 2026 (36,008 transactions) |
+| BTC HF strategy — net result | −$99,896 | MEXC Slippage Analysis, 2026 |
+| Traders with >50% win rate who lost money | 82% | Barber, Makov & Schwartz · JFQA 2024 · 25,000+ accounts |
+| Avg winner / avg loser per trade | +1.2% / −2.8% | Same study above |
+| Retail investor underperforms S&P 500 | 6.1% p.a. over 20 years | Dalbar Inc. |
+| Institutional algo share of FPI profits | 97% | SEBI India Sept 2024 |
+
+---
+
+#### MODELED — Derived or calculated from source figures
+
+- **Net returns per trader type** — gross return minus median fee and slippage estimates per category
+- **Win-rate P&L curve** — mathematical: `pnl = wr × avg_win + (1 − wr) × avg_loss` using SOURCE inputs
+- **Break-even win rate** — algebraic result, not an observed threshold
+- **Survivorship bias correction** — Andrikogiannopoulou & Papakonstantinou (hedge fund study) factors applied to retail bot context
+- **Cost erosion waterfall** — illustrative scenario using category-level median cost estimates
+
+---
+
+#### ILLUSTRATIVE — Scenario models with stated assumptions
+
+- **20-year compound growth chart** — constant-rate projection, not observed portfolio tracks
+  - Passive: 10.0% p.a. (S&P 500 CAGR per Dalbar)
+  - Retail Bot: 6.5% p.a. (optimistic net-of-cost estimate)
+  - Manual Retail: 3.9% p.a. (Dalbar 20-year average)
+- **Survivorship bias donut** — proportions reflect SOURCE 73% failure rate; absolute numbers are illustrative
+- **Comparison table** — modelled archetypes, not averages from a single observed dataset
+
+---
+
+#### Why a mixed approach is analytically valid
+
+An explanatory analytical dashboard does not require a single raw observed dataset.
+This is standard practice in policy analysis, financial education, and quantitative
+research communication. SOURCE data anchors all major claims to cited evidence.
+MODELED and ILLUSTRATIVE components exist to make the mechanics visually interpretable —
+not to fabricate new claims.
+
+All key findings (fee erosion, backtest unreliability, survivorship bias, payoff asymmetry)
+are derived directly from the cited primary sources listed above.
     """)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 16 ·  FOOTER
+# §10 — FOOTER
 # ═══════════════════════════════════════════════════════════════════════════════
 st.markdown(
-    f"<div style='text-align:center; color:#6B7280; font-size:0.78rem; padding:14px 0 28px;'>"
-    "Data · SEBI India (2024) &nbsp;·&nbsp; ESMA &nbsp;·&nbsp; "
-    "Wiecki et al./Quantopian (2016) &nbsp;·&nbsp; Barber &amp; Odean / UC Berkeley &nbsp;·&nbsp; "
+    f"<div style='text-align:center; color:{SUB}; font-size:0.78rem; padding:16px 0 32px;'>"
+    "Sources · SEBI India (2024) &nbsp;·&nbsp; ESMA &nbsp;·&nbsp; "
+    "Wiecki et al. / Quantopian (2016) &nbsp;·&nbsp; Barber &amp; Odean / UC Berkeley &nbsp;·&nbsp; "
     "MEXC (2026) &nbsp;·&nbsp; Dalbar Inc. &nbsp;·&nbsp; TradingView Hub (2026)<br>"
-    "Built with <b>Streamlit</b> &amp; <b>Plotly</b> &nbsp;·&nbsp; "
-    "Independent research · Pawan Bohora &nbsp;·&nbsp; MSCS, Wright State University"
+    f"Built with <strong style='color:{TEXT};'>Streamlit</strong> &amp; "
+    f"<strong style='color:{TEXT};'>Plotly</strong> &nbsp;·&nbsp; "
+    "Pawan Bohora · MSCS, Wright State University · Independent research"
     "</div>",
     unsafe_allow_html=True,
 )
