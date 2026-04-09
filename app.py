@@ -1,8 +1,9 @@
 """
 Trading Bots: Reality Check — Portfolio Dashboard
 ══════════════════════════════════════════════════
-Author  : Pawan Bohora · MSCS, Wright State University
-GitHub  : github.com/pawanbohora/trading-bots-reality-check
+Author  : Pujan Bohora
+GitHub  : https://github.com/pujanbohora/trading-bots-vs-humans-check/
+LinkedIn: https://www.linkedin.com/in/pujan-bohora/
 
 Data provenance legend used throughout this file:
   SOURCE     — figure cited directly from a published study, regulator disclosure, or broker report
@@ -1154,7 +1155,9 @@ st.markdown(
     "MEXC (2026) &nbsp;·&nbsp; Dalbar Inc. &nbsp;·&nbsp; TradingView Hub (2026)<br>"
     f"Built with <strong style='color:{TEXT};'>Streamlit</strong> &amp; "
     f"<strong style='color:{TEXT};'>Plotly</strong> &nbsp;·&nbsp; "
-    "Pawan Bohora · MSCS, Wright State University · Independent research"
+    "Pujan Bohora<br>"
+    "© 2026 Pujan Bohora. Code, dashboard design, and original research synthesis are licensed under the MIT License. "
+    "Third-party data, studies, and cited source material remain the property of their respective owners."
     "</div>",
     unsafe_allow_html=True,
 )
